@@ -6,90 +6,14 @@ var bodyParser = require("body-parser"); // We will use this to parse the HTTP r
 var cors = require("cors");
 var passportSetup = require("./config/passport-setup");
 var session = require("express-session");
-const passport = require("./passport");
 const dbConnection = require("./db");
 const MongoStore = require("connect-mongo")(session);
 var app = express();
 
-// app.use(
-//   session({
-//     secret: "hokage" || "this is the default passphrase",
-//     store: new MongoStore({ mongooseConnection: dbConnection }),
-//     resave: false,
-//     saveUninitialized: false
-//   })
-// );
-
-//-----------Passport Stuff ---------------
-// var passport = require('passport')
-//   , LocalStrategy = require('passport-local').Strategy;
-
-// passport.use(new LocalStrategy(
-//   function(username, password, done) {
-//     User.findOne({ username: username }, function(err, user) {
-//       if (err) { return done(err); }
-//       if (!user) {
-//         return done(null, false, { message: 'Incorrect username.' });
-//       }
-//       if (!user.validPassword(password)) {
-//         return done(null, false, { message: 'Incorrect password.' });
-//       }
-//       return done(null, user);
-//     });
-//   }
-// ));
-
-// passport.serializeUser(function(user, done) {
-//   done(null, user.id);
-// });
-
-// passport.deserializeUser(function(id, done) {
-//   User.findById(id, function(err, user) {
-//     done(err, user);
-//   });
-// });
-
-//-------------------Acativate Session--------------
-// var session = require("express-session");
-// app.use(session({secret: 'hokage',
-//                  saveUninitialized: true,
-//                  resave: true}));
-
-// //make user ID available in templates
-// app.use(function(req,res,next){
-//   res.locals.currentUser = req.session.userId;
-//   next();
-// });
-
 //setup passport
-app.use(passport.initialize());
-app.use(passport.session());
-// ===== testing middleware =====
-// app.use(function(req, res, next) {
-//   console.log("===== passport user =======");
-//   console.log(req.session);
-//   console.log(req.user);
-//   console.log("===== END =======");
-//   next();
-// });
-// testing
-// app.get(
-//   "/auth/google/callback",
-//   (req, res, next) => {
-//     console.log(`req.user: ${req.user}`);
-//     console.log("======= /auth/google/callback was called! =====");
-//     next();
-//   },
-//   passport.authenticate("google", { failureRedirect: "/login" }),
-//   (req, res) => {
-//     res.redirect("/");
-//   }
-// );
+// app.use(passport.initialize());
+// app.use(passport.session());
 
-//--------------------------
-
-// var test = require("./routes/test");
-// var mongoose = require("mongoose");
 var game = require("./routes/game");
 var authRoutes = require("./routes/auth.routes");
 
@@ -102,13 +26,9 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 app.use(cookieParser());
 app.use(express.static(path.join(__dirname, "public")));
-// app.use(cors());
+app.use(cors());
 
-// app.use("/test/", test);
-// app.use("/auth", authRoutes);
 app.use("/auth", authRoutes);
-// require("./routes/auth.routes.js")(app);
-// require("./routes/game.js")(app);
 
 // catch 404 and forward to error handler
 app.use(function(req, res, next) {
@@ -125,14 +45,5 @@ app.use(function(err, req, res, next) {
   res.status(err.status || 500);
   res.render("error");
 });
-
-// enable cors
-// var corsOption = {
-//   origin: true,
-//   methods: "GET,HEAD,PUT,PATCH,POST,DELETE",
-//   credentials: true,
-//   exposedHeaders: ["x-auth-token"]
-// };
-// app.use(cors(corsOption));
 
 module.exports = app;

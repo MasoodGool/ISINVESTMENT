@@ -1,8 +1,9 @@
 const mongoose = require("mongoose");
+const keys = require("../config/keys");
+keys.google.clientID;
 mongoose.Promise = global.Promise;
 let MONGO_URL;
-const MONGO_LOCAL_URL =
-  "mongodb://MasoodGool:go235070@masood-shard-00-00-yidfg.mongodb.net:27017,masood-shard-00-01-yidfg.mongodb.net:27017,masood-shard-00-02-yidfg.mongodb.net:27017/test?ssl=true&replicaSet=Masood-shard-0&authSource=admin&retryWrites=false";
+const MONGO_LOCAL_URL = keys.mongodb.dbURI;
 
 if (process.env.MONGODB_URI) {
   mongoose.connect(process.env.MONGODB_URI);
