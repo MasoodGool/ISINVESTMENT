@@ -16,7 +16,7 @@ model Property {
   id               String        @id @default(cuid())
   name             String
   type             String        @default("Residential")
-  // PropertyType: Residential | Sectional | StudentAccommodation | Commercial | Other
+  // PropertyType: Residential | Sectional | Commercial | Other
 
   addressLine1     String
   addressLine2     String?
@@ -28,34 +28,16 @@ model Property {
   purchasePrice    Int           // ZAR cents
   acquisitionCosts Int           @default(0) // transfer duty + attorney fees (capital, base cost)
 
-  // Student accommodation specifics
-  totalRooms       Int?
-
   notes            String?
   archived         Boolean       @default(false)
 
   createdAt        DateTime      @default(now())
   updatedAt        DateTime      @updatedAt
 
-  rooms            Room[]
   leases           Lease[]
   expenses         Expense[]
   loans            Loan[]
   taxNotes         TaxYearNote[]
-}
-
-/// Used primarily for student accommodation where each bed/room is rented
-/// to a separate tenant on a separate lease.
-model Room {
-  id          String   @id @default(cuid())
-  property    Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
-  propertyId  String
-  label       String
-  monthlyRent Int?     // default — overridable on the lease
-
-  leases      Lease[]
-
-  @@index([propertyId])
 }
 
 model Tenant {
@@ -74,8 +56,6 @@ model Lease {
   id            String        @id @default(cuid())
   property      Property      @relation(fields: [propertyId], references: [id])
   propertyId    String
-  room          Room?         @relation(fields: [roomId], references: [id])
-  roomId        String?
   tenant        Tenant        @relation(fields: [tenantId], references: [id])
   tenantId      String
 
@@ -124,6 +104,12 @@ model Loan {
   startDate       DateTime
   termMonths      Int
   interestRate    Float           // annual %, e.g. 11.75
+
+  // Bond initiation fees are not fully deductible upfront. We spread them
+  // over the loan term (Practice Note 31 / s24J). Store the once-off fee
+  // here and the tax engine will amortise it monthly.
+  initiationFees  Int             @default(0)
+
   notes           String?
 
   statements      LoanStatement[]
@@ -167,8 +153,8 @@ model Expense {
   vendor        String?
 
   // For SARS:
-  // - isCapital: not deductible; tracked for CGT base cost
-  // - isReclaimable: false when an expense is mixed-use or doesn't qualify
+  // - isCapital: not deductible against rental income; tracked for CGT base cost
+  // - isReclaimable: false when an expense is mixed-use or otherwise excluded
   isCapital     Boolean  @default(false)
   isReclaimable Boolean  @default(true)
 
