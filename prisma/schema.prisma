@@ -1,0 +1,182 @@
+// ISINVESTMENT — South African property investment platform
+// All monetary fields are stored as integers in ZAR cents (avoids float drift).
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+  // For production swap to:
+  // provider = "postgresql"
+}
+
+model Property {
+  id               String        @id @default(cuid())
+  name             String
+  type             String        @default("Residential")
+  // PropertyType: Residential | Sectional | Commercial | Other
+
+  addressLine1     String
+  addressLine2     String?
+  city             String
+  province         String
+  postalCode       String?
+
+  purchaseDate     DateTime
+  purchasePrice    Int           // ZAR cents
+  acquisitionCosts Int           @default(0) // transfer duty + attorney fees (capital, base cost)
+
+  notes            String?
+  archived         Boolean       @default(false)
+
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
+
+  leases           Lease[]
+  expenses         Expense[]
+  loans            Loan[]
+  taxNotes         TaxYearNote[]
+}
+
+model Tenant {
+  id        String   @id @default(cuid())
+  fullName  String
+  email     String?
+  phone     String?
+  idNumber  String?
+  notes     String?
+
+  leases    Lease[]
+  createdAt DateTime @default(now())
+}
+
+model Lease {
+  id            String        @id @default(cuid())
+  property      Property      @relation(fields: [propertyId], references: [id])
+  propertyId    String
+  tenant        Tenant        @relation(fields: [tenantId], references: [id])
+  tenantId      String
+
+  startDate     DateTime
+  endDate       DateTime?
+  monthlyRent   Int           // ZAR cents
+  depositAmount Int           @default(0)
+  frequency     String        @default("Monthly") // Monthly | Weekly
+  status        String        @default("Active")  // Active | Ended | Pending
+  notes         String?
+
+  payments      RentPayment[]
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  @@index([propertyId])
+  @@index([tenantId])
+}
+
+model RentPayment {
+  id          String   @id @default(cuid())
+  lease       Lease    @relation(fields: [leaseId], references: [id], onDelete: Cascade)
+  leaseId     String
+
+  paidOn      DateTime
+  periodStart DateTime
+  periodEnd   DateTime
+  amount      Int      // ZAR cents
+  status      String   @default("Paid") // Paid | Partial | Late | Pending
+  reference   String?
+  notes       String?
+
+  createdAt   DateTime @default(now())
+
+  @@index([leaseId])
+  @@index([paidOn])
+}
+
+model Loan {
+  id              String          @id @default(cuid())
+  property        Property        @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  propertyId      String
+  lender          String
+  accountNumber   String?
+  originalBalance Int             // ZAR cents
+  startDate       DateTime
+  termMonths      Int
+  interestRate    Float           // annual %, e.g. 11.75
+
+  // Bond initiation fees are not fully deductible upfront. We spread them
+  // over the loan term (Practice Note 31 / s24J). Store the once-off fee
+  // here and the tax engine will amortise it monthly.
+  initiationFees  Int             @default(0)
+
+  notes           String?
+
+  statements      LoanStatement[]
+  createdAt       DateTime        @default(now())
+
+  @@index([propertyId])
+}
+
+/// Each loan statement period stores the interest charged for that period.
+/// Interest is the SARS-deductible portion under section 11(a) — capital
+/// repayments are not.
+model LoanStatement {
+  id              String   @id @default(cuid())
+  loan            Loan     @relation(fields: [loanId], references: [id], onDelete: Cascade)
+  loanId          String
+
+  periodStart     DateTime
+  periodEnd       DateTime
+  openingBalance  Int
+  closingBalance  Int
+  interestCharged Int      // <- the deductible figure
+  feesCharged     Int      @default(0)
+  principalPaid   Int      @default(0)
+  notes           String?
+
+  createdAt       DateTime @default(now())
+
+  @@index([loanId])
+  @@index([periodStart])
+}
+
+model Expense {
+  id            String   @id @default(cuid())
+  property      Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  propertyId    String
+
+  date          DateTime
+  amount        Int      // ZAR cents
+  categoryCode  String   // see src/lib/sars.ts
+  description   String
+  vendor        String?
+
+  // For SARS:
+  // - isCapital: not deductible against rental income; tracked for CGT base cost
+  // - isReclaimable: false when an expense is mixed-use or otherwise excluded
+  isCapital     Boolean  @default(false)
+  isReclaimable Boolean  @default(true)
+
+  receiptUrl    String?
+  notes         String?
+
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([propertyId])
+  @@index([date])
+}
+
+/// Free-form notes attached to a tax year (per property or portfolio-wide).
+model TaxYearNote {
+  id         String    @id @default(cuid())
+  taxYear    Int       // year ending February (e.g. 2026 = March 2025–Feb 2026)
+  property   Property? @relation(fields: [propertyId], references: [id])
+  propertyId String?
+  body       String
+
+  createdAt  DateTime  @default(now())
+
+  @@index([taxYear])
+}

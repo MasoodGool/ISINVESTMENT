@@ -1,38 +1,46 @@
 {
-  "name": "app-backend",
-  "version": "0.0.0",
+  "name": "isinvestment",
+  "version": "0.1.0",
   "private": true,
+  "description": "ISINVESTMENT — South African property investment platform with SARS-aware bookkeeping",
   "scripts": {
-    "start": "nodemon ./bin/www"
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint",
+    "typecheck": "tsc --noEmit",
+    "db:push": "prisma db push",
+    "db:seed": "tsx --env-file=.env prisma/seed.ts",
+    "db:studio": "prisma studio",
+    "db:reset": "prisma db push --force-reset && npm run db:seed",
+    "postinstall": "prisma generate"
+  },
+  "prisma": {
+    "seed": "tsx prisma/seed.ts"
   },
   "dependencies": {
-    "axios": "^0.18.0",
-    "bcrypt-nodejs": "0.0.3",
-    "bcryptjs": "^2.4.3",
-    "connect-mongo": "^2.0.1",
-    "cookie-parser": "~1.4.3",
-    "cors": "^2.8.4",
-    "debug": "~2.6.9",
-    "eslint": "^5.1.0",
-    "express": "~4.16.0",
-    "express-session": "^1.15.6",
-    "http-errors": "~1.6.2",
-    "jade": "~1.11.0",
-    "jsonwebtoken": "^8.3.0",
-    "mongodb": "^3.1.0",
-    "mongoose": "^5.1.7",
-    "morgan": "^1.9.0",
-    "passport": "^0.4.0",
-    "passport-google-oauth": "^1.0.0",
-    "passport-google-oauth20": "^1.0.0",
-    "passport-jwt": "^4.0.0",
-    "passport-local": "^1.0.0"
+    "@prisma/client": "^6.2.0",
+    "clsx": "^2.1.1",
+    "date-fns": "^4.1.0",
+    "jose": "^5.9.6",
+    "lucide-react": "^0.469.0",
+    "next": "^15.1.4",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "tailwind-merge": "^2.6.0",
+    "zod": "^3.24.1"
   },
-  "main": "app.js",
   "devDependencies": {
-    "nodemon": "^1.17.5"
-  },
-  "author": "",
-  "license": "ISC",
-  "description": "PInitial Commit"
+    "@types/node": "^22.10.5",
+    "@types/react": "^19.0.6",
+    "@types/react-dom": "^19.0.3",
+    "autoprefixer": "^10.4.20",
+    "eslint": "^9.18.0",
+    "eslint-config-next": "^15.1.4",
+    "postcss": "^8.5.0",
+    "prisma": "^6.2.0",
+    "tailwindcss": "^3.4.17",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.3"
+  }
 }

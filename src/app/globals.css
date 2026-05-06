@@ -1,0 +1,32 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --bg: #fafafa;
+  --bg-card: #ffffff;
+  --fg: #18181b;
+  --muted: #71717a;
+  --border: #e4e4e7;
+}
+
+html,
+body {
+  background: var(--bg);
+  color: var(--fg);
+  font-feature-settings: "rlig" 1, "calt" 1;
+}
+
+* {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+@layer components {
+  .label {
+    @apply block text-sm font-medium text-zinc-700;
+  }
+  .hint {
+    @apply text-xs text-zinc-500;
+  }
+}
