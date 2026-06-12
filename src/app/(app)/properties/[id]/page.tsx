@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
-import { ChevronLeft } from "lucide-react";
+import { ChevronLeft, Pencil } from "lucide-react";
 import { prisma } from "@/lib/db";
 import {
   computeBaseCost,
@@ -95,10 +95,18 @@ export default async function PropertyDetailPage({
             <Badge tone="neutral">Purchased {formatDate(property.purchaseDate)}</Badge>
             {property.archived && <Badge tone="amber">Archived</Badge>}
             {writable && (
-              <ArchivePropertyButton
-                propertyId={property.id}
-                archived={property.archived}
-              />
+              <>
+                <Link
+                  href={`/properties/${property.id}/edit`}
+                  className="inline-flex h-8 items-center gap-1.5 rounded-md border border-zinc-300 bg-white px-3 text-sm font-medium text-zinc-700 hover:bg-zinc-50"
+                >
+                  <Pencil className="h-3.5 w-3.5" /> Edit
+                </Link>
+                <ArchivePropertyButton
+                  propertyId={property.id}
+                  archived={property.archived}
+                />
+              </>
             )}
           </div>
         </div>

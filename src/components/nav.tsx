@@ -70,7 +70,11 @@ export function Nav({ user }: { user: NavUser }) {
           })}
         </nav>
         <div className="ml-auto flex items-center gap-3">
-          <div className="hidden sm:block text-right leading-tight">
+          <Link
+            href="/account"
+            className="hidden sm:block rounded-md px-2 py-1 text-right leading-tight hover:bg-zinc-50"
+            title="Your account"
+          >
             <div className="text-sm font-medium text-zinc-900">{user.name}</div>
             <div className="text-xs text-zinc-500">
               {user.role === "ADMIN"
@@ -79,7 +83,7 @@ export function Nav({ user }: { user: NavUser }) {
                   ? "Viewer"
                   : "Manager"}
             </div>
-          </div>
+          </Link>
           <form action="/api/logout" method="post">
             <button
               type="submit"
