@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { Download } from "lucide-react";
 import { prisma } from "@/lib/db";
 import {
   computePortfolioTaxSummary,
@@ -44,26 +45,51 @@ export default async function TaxPage({
             your accountant before filing.
           </p>
         </div>
-        <form className="flex items-center gap-2">
-          <label className="text-sm text-zinc-600">Tax year</label>
-          <select
-            name="year"
-            defaultValue={String(taxYear)}
-            className="h-9 rounded-md border border-zinc-300 bg-white px-2 text-sm"
-          >
-            {years.map((y) => (
-              <option key={y} value={y}>
-                {formatTaxYear(y)}
-              </option>
-            ))}
-          </select>
-          <button
-            type="submit"
-            className="h-9 rounded-md bg-zinc-900 px-3 text-sm font-medium text-white hover:bg-zinc-800"
-          >
-            View
-          </button>
-        </form>
+        <div className="flex flex-wrap items-center gap-2">
+          <form className="flex items-center gap-2">
+            <label className="text-sm text-zinc-600">Tax year</label>
+            <select
+              name="year"
+              defaultValue={String(taxYear)}
+              className="h-9 rounded-md border border-zinc-300 bg-white px-2 text-sm"
+            >
+              {years.map((y) => (
+                <option key={y} value={y}>
+                  {formatTaxYear(y)}
+                </option>
+              ))}
+            </select>
+            <button
+              type="submit"
+              className="h-9 rounded-md bg-zinc-900 px-3 text-sm font-medium text-white hover:bg-zinc-800"
+            >
+              View
+            </button>
+          </form>
+          <div className="flex items-center gap-1.5">
+            <a
+              href={`/api/export/tax-report?year=${taxYear}`}
+              className="inline-flex h-9 items-center gap-1.5 rounded-md border border-zinc-300 bg-white px-3 text-sm font-medium text-zinc-700 hover:bg-zinc-50"
+              download
+            >
+              <Download className="h-4 w-4" /> Report CSV
+            </a>
+            <a
+              href={`/api/export/expenses?year=${taxYear}`}
+              className="inline-flex h-9 items-center gap-1.5 rounded-md border border-zinc-300 bg-white px-3 text-sm font-medium text-zinc-700 hover:bg-zinc-50"
+              download
+            >
+              <Download className="h-4 w-4" /> Expenses CSV
+            </a>
+            <a
+              href={`/api/export/rent-payments?year=${taxYear}`}
+              className="inline-flex h-9 items-center gap-1.5 rounded-md border border-zinc-300 bg-white px-3 text-sm font-medium text-zinc-700 hover:bg-zinc-50"
+              download
+            >
+              <Download className="h-4 w-4" /> Rent CSV
+            </a>
+          </div>
+        </div>
       </div>
 
       {summary.ringFenceRisk && (
