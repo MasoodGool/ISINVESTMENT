@@ -1,6 +1,10 @@
 import Link from "next/link";
 import { Download } from "lucide-react";
 import { prisma } from "@/lib/db";
+import { getCurrentUser } from "@/lib/auth";
+import { canWrite } from "@/lib/rbac";
+import { formatDate } from "@/lib/format";
+import { TaxNotes } from "./notes";
 import {
   computePortfolioTaxSummary,
   currentTaxYear,
@@ -20,7 +24,15 @@ export default async function TaxPage({
 }) {
   const sp = await searchParams;
   const taxYear = sp.year ? Number(sp.year) : currentTaxYear();
-  const summary = await computePortfolioTaxSummary(taxYear);
+  const [summary, notes, user] = await Promise.all([
+    computePortfolioTaxSummary(taxYear),
+    prisma.taxYearNote.findMany({
+      where: { taxYear },
+      orderBy: { createdAt: "desc" },
+    }),
+    getCurrentUser(),
+  ]);
+  const writable = user ? canWrite(user.role) : false;
 
   // Year picker: current ± 4 (5 historical, current, 1 ahead).
   const oldestProperty = await prisma.property.findFirst({
@@ -293,6 +305,29 @@ export default async function TaxPage({
                 </Tr>
               </TBody>
             </Table>
+          </CardBody>
+        </Card>
+      </section>
+
+      <section>
+        <Card>
+          <CardHeader>
+            <CardTitle>Notes for {formatTaxYear(taxYear)}</CardTitle>
+            <CardDescription>
+              Context your accountant needs when reviewing this year — kept with the
+              tax year, included in your records.
+            </CardDescription>
+          </CardHeader>
+          <CardBody>
+            <TaxNotes
+              taxYear={taxYear}
+              writable={writable}
+              notes={notes.map((n) => ({
+                id: n.id,
+                body: n.body,
+                createdAt: formatDate(n.createdAt),
+              }))}
+            />
           </CardBody>
         </Card>
       </section>

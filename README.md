@@ -20,6 +20,9 @@ managers, and the accountants who serve them.
 - **Expenses** categorised against a SARS-aware catalog that flags
   capital vs revenue items and warns when a "repair" is really an
   improvement (capital, not deductible).
+- **Bank statement import** — upload a CSV from any major SA bank, review
+  auto-suggested SARS categories (rent credits matched to the active
+  lease), and bulk-import a month of transactions in one confirmed step.
 
 ### Reporting & tax
 - **Tax year report** producing the figures for the *Local rental income*
@@ -30,6 +33,8 @@ managers, and the accountants who serve them.
 - **Reports** — trailing-12-month cashflow, occupancy, and tax
   year-to-date position per property.
 - **ROI metrics** — gross/net yield, cash-on-cash, CGT base cost per property.
+- **Tax year notes** — context your accountant needs (vacancies, payouts,
+  ring-fencing history), kept with each tax year.
 
 ### Enterprise
 - **Multi-user access with roles**:
@@ -103,8 +108,6 @@ production hardening. Security posture and reporting are covered in
 
 ## Roadmap
 
-- Bank statement CSV import + auto-categorisation
 - Document store for receipts (S3 / local disk)
-- Capital improvements ledger feeding into a CGT base-cost calculator
 - ITR12 PDF export
 - Mobile / PWA
