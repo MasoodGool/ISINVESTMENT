@@ -13,6 +13,7 @@ import {
   BarChart3,
   Settings,
   ScrollText,
+  Upload,
 } from "lucide-react";
 
 const items = [
@@ -23,6 +24,8 @@ const items = [
   { href: "/reports", label: "Reports", icon: BarChart3 },
   { href: "/tax", label: "Tax report", icon: FileText },
 ];
+
+const writerItems = [{ href: "/import", label: "Import", icon: Upload }];
 
 const adminItems = [
   { href: "/settings/users", label: "Users", icon: Settings },
@@ -37,7 +40,11 @@ export interface NavUser {
 
 export function Nav({ user }: { user: NavUser }) {
   const pathname = usePathname();
-  const navItems = user.role === "ADMIN" ? [...items, ...adminItems] : items;
+  const navItems = [
+    ...items,
+    ...(user.role === "ADMIN" || user.role === "MANAGER" ? writerItems : []),
+    ...(user.role === "ADMIN" ? adminItems : []),
+  ];
 
   return (
     <header className="border-b border-zinc-200 bg-white">
