@@ -7,8 +7,13 @@ import {
   createExpenseAction,
   createLoanAction,
   createLoanStatementAction,
+  deleteRentPaymentAction,
+  deleteExpenseAction,
+  deleteLoanStatementAction,
+  setPropertyArchivedAction,
   type ActionState,
 } from "./actions";
+import { Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Field, FieldHint, Input, Label, Select, Textarea } from "@/components/ui/input";
 import { Alert } from "@/components/ui/alert";
@@ -19,6 +24,110 @@ function useForm(
   action: (prev: ActionState, fd: FormData) => Promise<ActionState>,
 ) {
   return useActionState<ActionState, FormData>(action, {});
+}
+
+// --------------------------------------------------------------------------
+// Row delete buttons (with confirm) and archive toggle
+// --------------------------------------------------------------------------
+
+function DeleteRowButton({
+  action,
+  propertyId,
+  id,
+  confirmText,
+}: {
+  action: (prev: ActionState, fd: FormData) => Promise<ActionState>;
+  propertyId: string;
+  id: string;
+  confirmText: string;
+}) {
+  const [state, formAction, pending] = useForm(action);
+
+  return (
+    <form
+      action={formAction}
+      onSubmit={(e) => {
+        if (!window.confirm(confirmText)) e.preventDefault();
+      }}
+      className="inline-flex"
+    >
+      <input type="hidden" name="propertyId" value={propertyId} />
+      <input type="hidden" name="id" value={id} />
+      <button
+        type="submit"
+        disabled={pending}
+        title={state.error ?? "Delete"}
+        className="rounded p-1 text-zinc-400 hover:bg-red-50 hover:text-red-600 disabled:opacity-50"
+      >
+        <Trash2 className="h-3.5 w-3.5" />
+        <span className="sr-only">Delete</span>
+      </button>
+    </form>
+  );
+}
+
+export function DeletePaymentButton(props: { propertyId: string; id: string }) {
+  return (
+    <DeleteRowButton
+      action={deleteRentPaymentAction}
+      confirmText="Delete this rent payment? This affects the tax report."
+      {...props}
+    />
+  );
+}
+
+export function DeleteExpenseButton(props: { propertyId: string; id: string }) {
+  return (
+    <DeleteRowButton
+      action={deleteExpenseAction}
+      confirmText="Delete this expense? This affects the tax report."
+      {...props}
+    />
+  );
+}
+
+export function DeleteStatementButton(props: { propertyId: string; id: string }) {
+  return (
+    <DeleteRowButton
+      action={deleteLoanStatementAction}
+      confirmText="Delete this loan statement? This affects the deductible interest."
+      {...props}
+    />
+  );
+}
+
+export function ArchivePropertyButton({
+  propertyId,
+  archived,
+}: {
+  propertyId: string;
+  archived: boolean;
+}) {
+  const [state, formAction, pending] = useForm(setPropertyArchivedAction);
+
+  return (
+    <form
+      action={formAction}
+      onSubmit={(e) => {
+        if (
+          !archived &&
+          !window.confirm(
+            "Archive this property? It will be hidden from the dashboard and excluded from new tax reports, but no data is deleted.",
+          )
+        ) {
+          e.preventDefault();
+        }
+      }}
+      className="inline-flex items-center gap-2"
+    >
+      <input type="hidden" name="propertyId" value={propertyId} />
+      <input type="hidden" name="archived" value={archived ? "false" : "true"} />
+      <Button type="submit" size="sm" variant="outline" disabled={pending}>
+        {pending ? "…" : archived ? "Unarchive" : "Archive"}
+      </Button>
+      {state.error && <span className="text-xs text-red-600">{state.error}</span>}
+    </form>
+  );
 }
 
 // --------------------------------------------------------------------------

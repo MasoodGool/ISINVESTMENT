@@ -1,5 +1,7 @@
 import { cookies } from "next/headers";
 import { SignJWT, jwtVerify } from "jose";
+import { prisma } from "@/lib/db";
+import { canAdminister, canWrite, type Role } from "@/lib/rbac";
 
 const COOKIE_NAME = "isi_session";
 const ALGORITHM = "HS256";
@@ -16,9 +18,20 @@ function getSecretKey(): Uint8Array {
   return new TextEncoder().encode(secret);
 }
 
-interface SessionPayload {
-  sub: "owner";
-  iat: number;
+export interface SessionPayload {
+  /** User id. */
+  sub: string;
+  email: string;
+  name: string;
+  role: Role;
+}
+
+/** The session user, freshly loaded from the database. */
+export interface SessionUser {
+  id: string;
+  email: string;
+  name: string;
+  role: Role;
 }
 
 async function sign(payload: SessionPayload): Promise<string> {
@@ -34,14 +47,25 @@ export async function verifyToken(token: string): Promise<SessionPayload | null>
     const { payload } = await jwtVerify<SessionPayload>(token, getSecretKey(), {
       algorithms: [ALGORITHM],
     });
+    if (!payload.sub) return null;
     return payload;
   } catch {
     return null;
   }
 }
 
-export async function createSession(): Promise<void> {
-  const token = await sign({ sub: "owner", iat: Math.floor(Date.now() / 1000) });
+export async function createSession(user: {
+  id: string;
+  email: string;
+  name: string;
+  role: string;
+}): Promise<void> {
+  const token = await sign({
+    sub: user.id,
+    email: user.email,
+    name: user.name,
+    role: user.role as Role,
+  });
   const store = await cookies();
   store.set(COOKIE_NAME, token, {
     httpOnly: true,
@@ -64,16 +88,34 @@ export async function getSession(): Promise<SessionPayload | null> {
   return verifyToken(token);
 }
 
-export function checkPassword(password: string): boolean {
-  const expected = process.env.APP_PASSWORD;
-  if (!expected) return false;
-  // Constant-time-ish comparison.
-  if (password.length !== expected.length) return false;
-  let mismatch = 0;
-  for (let i = 0; i < expected.length; i++) {
-    mismatch |= expected.charCodeAt(i) ^ password.charCodeAt(i);
-  }
-  return mismatch === 0;
+/**
+ * Resolve the session against the database so role changes and
+ * deactivation take effect immediately, not at token expiry.
+ */
+export async function getCurrentUser(): Promise<SessionUser | null> {
+  const session = await getSession();
+  if (!session) return null;
+  const user = await prisma.user.findUnique({ where: { id: session.sub } });
+  if (!user || !user.active) return null;
+  return { id: user.id, email: user.email, name: user.name, role: user.role as Role };
+}
+
+/** For server actions: the current user if they may modify data, else null. */
+export async function getWriter(): Promise<SessionUser | null> {
+  const user = await getCurrentUser();
+  if (!user || !canWrite(user.role)) return null;
+  return user;
+}
+
+/** For server actions/pages: the current user if they are an admin, else null. */
+export async function getAdmin(): Promise<SessionUser | null> {
+  const user = await getCurrentUser();
+  if (!user || !canAdminister(user.role)) return null;
+  return user;
 }
 
 export const SESSION_COOKIE_NAME = COOKIE_NAME;
+
+/** Standard error message returned by actions when RBAC denies a write. */
+export const NOT_AUTHORIZED =
+  "You don't have permission to make changes. Ask an administrator to upgrade your role.";

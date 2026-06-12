@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { Building2 } from "lucide-react";
 import { prisma } from "@/lib/db";
+import { getCurrentUser } from "@/lib/auth";
+import { canWrite } from "@/lib/rbac";
 import { formatDate, formatZar } from "@/lib/format";
 import { Button } from "@/components/ui/button";
 import { Card, CardBody } from "@/components/ui/card";
@@ -9,13 +11,17 @@ import { Table, THead, TBody, Tr, Th, Td } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 
 export default async function PropertiesPage() {
-  const properties = await prisma.property.findMany({
-    where: { archived: false },
-    orderBy: { createdAt: "desc" },
-    include: {
-      leases: { where: { status: "Active" }, take: 1, include: { tenant: true } },
-    },
-  });
+  const [properties, user] = await Promise.all([
+    prisma.property.findMany({
+      where: { archived: false },
+      orderBy: { createdAt: "desc" },
+      include: {
+        leases: { where: { status: "Active" }, take: 1, include: { tenant: true } },
+      },
+    }),
+    getCurrentUser(),
+  ]);
+  const writable = user ? canWrite(user.role) : false;
 
   return (
     <div className="space-y-6">
@@ -26,9 +32,11 @@ export default async function PropertiesPage() {
             Your investment portfolio. Click a property to see rent, expenses, loan, and tax.
           </p>
         </div>
-        <Link href="/properties/new">
-          <Button>+ New property</Button>
-        </Link>
+        {writable && (
+          <Link href="/properties/new">
+            <Button>+ New property</Button>
+          </Link>
+        )}
       </div>
 
       {properties.length === 0 ? (
@@ -36,12 +44,14 @@ export default async function PropertiesPage() {
           title="No properties yet"
           description="Add your first investment property to start tracking it."
           action={
-            <Link href="/properties/new">
-              <Button>
-                <Building2 className="mr-2 h-4 w-4" />
-                Add a property
-              </Button>
-            </Link>
+            writable ? (
+              <Link href="/properties/new">
+                <Button>
+                  <Building2 className="mr-2 h-4 w-4" />
+                  Add a property
+                </Button>
+              </Link>
+            ) : undefined
           }
         />
       ) : (

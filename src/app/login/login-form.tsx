@@ -25,6 +25,17 @@ export function LoginForm({ from }: { from: string }) {
         <form action={formAction} className="space-y-4">
           <input type="hidden" name="from" value={from} />
           <Field>
+            <Label htmlFor="email">Email</Label>
+            <Input
+              id="email"
+              name="email"
+              type="email"
+              autoComplete="email"
+              required
+              autoFocus
+            />
+          </Field>
+          <Field>
             <Label htmlFor="password">Password</Label>
             <Input
               id="password"
@@ -32,7 +43,6 @@ export function LoginForm({ from }: { from: string }) {
               type="password"
               autoComplete="current-password"
               required
-              autoFocus
             />
           </Field>
           {state.error && <Alert tone="error">{state.error}</Alert>}

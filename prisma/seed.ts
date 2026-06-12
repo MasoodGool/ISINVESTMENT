@@ -2,6 +2,7 @@
 // the UI has something to display on first run.
 
 import { PrismaClient } from "@prisma/client";
+import { hashPassword } from "../src/lib/password";
 
 const prisma = new PrismaClient();
 
@@ -11,6 +12,8 @@ function rand(amount: number) {
 
 async function main() {
   // Wipe in dependency-safe order.
+  await prisma.auditLog.deleteMany();
+  await prisma.user.deleteMany();
   await prisma.rentPayment.deleteMany();
   await prisma.lease.deleteMany();
   await prisma.tenant.deleteMany();
@@ -19,6 +22,18 @@ async function main() {
   await prisma.expense.deleteMany();
   await prisma.taxYearNote.deleteMany();
   await prisma.property.deleteMany();
+
+  // Bootstrap admin (override via SEED_ADMIN_EMAIL / SEED_ADMIN_PASSWORD).
+  const adminEmail = process.env.SEED_ADMIN_EMAIL ?? "admin@example.com";
+  const adminPassword = process.env.SEED_ADMIN_PASSWORD ?? "change-me-now";
+  const admin = await prisma.user.create({
+    data: {
+      name: "Administrator",
+      email: adminEmail.toLowerCase(),
+      passwordHash: await hashPassword(adminPassword),
+      role: "ADMIN",
+    },
+  });
 
   const property = await prisma.property.create({
     data: {
@@ -242,6 +257,7 @@ async function main() {
   });
 
   console.log("Seeded.");
+  console.log(`  Admin:    ${admin.email} (password: ${adminPassword})`);
   console.log(`  Property: ${property.name}`);
   console.log(`  Tenant:   ${tenant.fullName}`);
 }

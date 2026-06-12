@@ -8,6 +8,8 @@ import {
   formatTaxYear,
 } from "@/lib/tax";
 import { formatPercent, formatZar } from "@/lib/format";
+import { getCurrentUser } from "@/lib/auth";
+import { canWrite } from "@/lib/rbac";
 import { Stat } from "@/components/ui/stat";
 import { Card, CardBody, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty";
@@ -17,7 +19,7 @@ import { Badge } from "@/components/ui/badge";
 
 export default async function DashboardPage() {
   const taxYear = currentTaxYear();
-  const [summary, properties] = await Promise.all([
+  const [summary, properties, user] = await Promise.all([
     computePortfolioTaxSummary(taxYear),
     prisma.property.findMany({
       where: { archived: false },
@@ -31,7 +33,9 @@ export default async function DashboardPage() {
         },
       },
     }),
+    getCurrentUser(),
   ]);
+  const writable = user ? canWrite(user.role) : false;
 
   if (properties.length === 0) {
     return (
@@ -41,12 +45,14 @@ export default async function DashboardPage() {
           title="No properties yet"
           description="Add your first property to start tracking rent, expenses, and your SARS position."
           action={
-            <Link href="/properties/new">
-              <Button>
-                <Building2 className="mr-2 h-4 w-4" />
-                Add a property
-              </Button>
-            </Link>
+            writable ? (
+              <Link href="/properties/new">
+                <Button>
+                  <Building2 className="mr-2 h-4 w-4" />
+                  Add a property
+                </Button>
+              </Link>
+            ) : undefined
           }
         />
       </div>
@@ -131,11 +137,13 @@ export default async function DashboardPage() {
       <section>
         <div className="mb-3 flex items-center justify-between">
           <h2 className="text-sm font-medium text-zinc-700">Properties</h2>
-          <Link href="/properties/new">
-            <Button size="sm" variant="outline">
-              + New property
-            </Button>
-          </Link>
+          {writable && (
+            <Link href="/properties/new">
+              <Button size="sm" variant="outline">
+                + New property
+              </Button>
+            </Link>
+          )}
         </div>
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
           {properties.map((p, idx) => {

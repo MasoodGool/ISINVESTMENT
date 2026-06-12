@@ -16,12 +16,18 @@ import { Stat } from "@/components/ui/stat";
 import { Badge } from "@/components/ui/badge";
 import { Alert } from "@/components/ui/alert";
 import { Table, THead, TBody, Tr, Th, Td } from "@/components/ui/table";
+import { getCurrentUser } from "@/lib/auth";
+import { canWrite } from "@/lib/rbac";
 import {
   LeaseForm,
   RentPaymentForm,
   ExpenseForm,
   LoanForm,
   LoanStatementForm,
+  DeletePaymentButton,
+  DeleteExpenseButton,
+  DeleteStatementButton,
+  ArchivePropertyButton,
 } from "./forms";
 
 export default async function PropertyDetailPage({
@@ -31,6 +37,8 @@ export default async function PropertyDetailPage({
 }) {
   const { id } = await params;
   const taxYear = currentTaxYear();
+  const user = await getCurrentUser();
+  const writable = user ? canWrite(user.role) : false;
 
   const property = await prisma.property.findUnique({
     where: { id },
@@ -85,6 +93,13 @@ export default async function PropertyDetailPage({
           <div className="flex items-center gap-2">
             <Badge tone="blue">{property.type}</Badge>
             <Badge tone="neutral">Purchased {formatDate(property.purchaseDate)}</Badge>
+            {property.archived && <Badge tone="amber">Archived</Badge>}
+            {writable && (
+              <ArchivePropertyButton
+                propertyId={property.id}
+                archived={property.archived}
+              />
+            )}
           </div>
         </div>
       </div>
@@ -141,7 +156,7 @@ export default async function PropertyDetailPage({
             : "No active lease — the property is vacant."
         }
         addLabel={activeLease ? "Replace lease" : "Add lease"}
-        form={<LeaseForm propertyId={property.id} />}
+        form={writable ? <LeaseForm propertyId={property.id} /> : null}
       >
         {property.leases.length === 0 ? (
           <Empty>No leases yet.</Empty>
@@ -179,7 +194,7 @@ export default async function PropertyDetailPage({
         description="Cash-basis ledger. Use the period dates so the tax report attributes income to the right month."
         addLabel="Record payment"
         form={
-          activeLease ? (
+          !writable ? null : activeLease ? (
             <RentPaymentForm propertyId={property.id} leaseId={activeLease.id} />
           ) : (
             <Alert tone="warning">Create an active lease before recording payments.</Alert>
@@ -198,6 +213,7 @@ export default async function PropertyDetailPage({
                 <Th className="text-right">Amount</Th>
                 <Th>Status</Th>
                 <Th>Reference</Th>
+                {writable && <Th></Th>}
               </Tr>
             </THead>
             <TBody>
@@ -227,6 +243,11 @@ export default async function PropertyDetailPage({
                     </Badge>
                   </Td>
                   <Td className="text-zinc-500">{p.reference ?? "—"}</Td>
+                  {writable && (
+                    <Td className="text-right">
+                      <DeletePaymentButton propertyId={property.id} id={p.id} />
+                    </Td>
+                  )}
                 </Tr>
               ))}
             </TBody>
@@ -239,7 +260,7 @@ export default async function PropertyDetailPage({
         title="Expenses"
         description="Capital items are tracked but not deducted against rental income. They build CGT base cost."
         addLabel="Record expense"
-        form={<ExpenseForm propertyId={property.id} />}
+        form={writable ? <ExpenseForm propertyId={property.id} /> : null}
       >
         {property.expenses.length === 0 ? (
           <Empty>No expenses recorded yet.</Empty>
@@ -253,6 +274,7 @@ export default async function PropertyDetailPage({
                 <Th>Vendor</Th>
                 <Th className="text-right">Amount</Th>
                 <Th>Treatment</Th>
+                {writable && <Th></Th>}
               </Tr>
             </THead>
             <TBody>
@@ -274,6 +296,11 @@ export default async function PropertyDetailPage({
                         <Badge tone="green">Deductible</Badge>
                       )}
                     </Td>
+                    {writable && (
+                      <Td className="text-right">
+                        <DeleteExpenseButton propertyId={property.id} id={e.id} />
+                      </Td>
+                    )}
                   </Tr>
                 );
               })}
@@ -287,7 +314,7 @@ export default async function PropertyDetailPage({
         title="Loan & statements"
         description="Capture each statement period so the deductible interest is precise."
         addLabel={property.loans.length === 0 ? "Add loan" : "Add another loan"}
-        form={<LoanForm propertyId={property.id} />}
+        form={writable ? <LoanForm propertyId={property.id} /> : null}
       >
         {property.loans.length === 0 ? (
           <Empty>No loan registered. Add one if this property has a bond.</Empty>
@@ -325,6 +352,7 @@ export default async function PropertyDetailPage({
                           <Th className="text-right">Fees</Th>
                           <Th className="text-right">Principal</Th>
                           <Th className="text-right">Closing</Th>
+                          {writable && <Th></Th>}
                         </Tr>
                       </THead>
                       <TBody>
@@ -348,20 +376,30 @@ export default async function PropertyDetailPage({
                             <Td className="text-right tabular-nums">
                               {formatZar(s.closingBalance)}
                             </Td>
+                            {writable && (
+                              <Td className="text-right">
+                                <DeleteStatementButton
+                                  propertyId={property.id}
+                                  id={s.id}
+                                />
+                              </Td>
+                            )}
                           </Tr>
                         ))}
                       </TBody>
                     </Table>
                   )}
 
-                  <details className="rounded-md border border-zinc-200 bg-zinc-50/50">
-                    <summary className="cursor-pointer px-4 py-2 text-sm font-medium text-zinc-700">
-                      + Add statement
-                    </summary>
-                    <div className="border-t border-zinc-200 bg-white p-4">
-                      <LoanStatementForm propertyId={property.id} loanId={loan.id} />
-                    </div>
-                  </details>
+                  {writable && (
+                    <details className="rounded-md border border-zinc-200 bg-zinc-50/50">
+                      <summary className="cursor-pointer px-4 py-2 text-sm font-medium text-zinc-700">
+                        + Add statement
+                      </summary>
+                      <div className="border-t border-zinc-200 bg-white p-4">
+                        <LoanStatementForm propertyId={property.id} loanId={loan.id} />
+                      </div>
+                    </details>
+                  )}
                 </CardBody>
               </Card>
             ))}
@@ -382,7 +420,7 @@ function Section({
   title: string;
   description?: string;
   addLabel: string;
-  form: React.ReactNode;
+  form: React.ReactNode | null;
   children: React.ReactNode;
 }) {
   return (
@@ -394,12 +432,14 @@ function Section({
       <Card>
         <CardBody className="p-0">{children}</CardBody>
       </Card>
-      <details className="mt-3 rounded-md border border-zinc-200 bg-white">
-        <summary className="cursor-pointer px-4 py-2 text-sm font-medium text-zinc-700 hover:bg-zinc-50">
-          {addLabel}
-        </summary>
-        <div className="border-t border-zinc-200 p-4">{form}</div>
-      </details>
+      {form && (
+        <details className="mt-3 rounded-md border border-zinc-200 bg-white">
+          <summary className="cursor-pointer px-4 py-2 text-sm font-medium text-zinc-700 hover:bg-zinc-50">
+            {addLabel}
+          </summary>
+          <div className="border-t border-zinc-200 p-4">{form}</div>
+        </details>
+      )}
     </section>
   );
 }

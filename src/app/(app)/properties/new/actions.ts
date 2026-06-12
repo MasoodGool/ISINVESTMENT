@@ -5,6 +5,8 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { prisma } from "@/lib/db";
 import { randToCents } from "@/lib/format";
+import { getWriter, NOT_AUTHORIZED } from "@/lib/auth";
+import { audit } from "@/lib/audit";
 
 const schema = z.object({
   name: z.string().trim().min(1, "Name is required"),
@@ -29,6 +31,9 @@ export async function createPropertyAction(
   _prev: FormState,
   formData: FormData,
 ): Promise<FormState> {
+  const user = await getWriter();
+  if (!user) return { error: NOT_AUTHORIZED };
+
   const parsed = schema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) {
     return {
@@ -56,6 +61,7 @@ export async function createPropertyAction(
     },
   });
 
+  await audit(user, "property.create", "Property", created.id, `Added property ${created.name}`);
   revalidatePath("/");
   revalidatePath("/properties");
   redirect(`/properties/${created.id}`);

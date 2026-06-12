@@ -3,8 +3,10 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { prisma } from "@/lib/db";
-import { randToCents } from "@/lib/format";
+import { formatZar, randToCents } from "@/lib/format";
 import { getCategory } from "@/lib/sars";
+import { getWriter, NOT_AUTHORIZED } from "@/lib/auth";
+import { audit } from "@/lib/audit";
 
 export interface ActionState {
   ok?: boolean;
@@ -41,6 +43,9 @@ export async function createLeaseAction(
   _prev: ActionState,
   formData: FormData,
 ): Promise<ActionState> {
+  const user = await getWriter();
+  if (!user) return { error: NOT_AUTHORIZED };
+
   const parsed = leaseSchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) return fail(parsed);
   const d = parsed.data;
@@ -74,6 +79,13 @@ export async function createLeaseAction(
     });
   });
 
+  await audit(
+    user,
+    "lease.create",
+    "Lease",
+    d.propertyId,
+    `New lease for ${d.tenantName} at ${formatZar(randToCents(d.monthlyRent))}/month`,
+  );
   revalidatePath(`/properties/${d.propertyId}`);
   revalidatePath("/properties");
   revalidatePath("/");
@@ -101,11 +113,14 @@ export async function createRentPaymentAction(
   _prev: ActionState,
   formData: FormData,
 ): Promise<ActionState> {
+  const user = await getWriter();
+  if (!user) return { error: NOT_AUTHORIZED };
+
   const parsed = rentSchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) return fail(parsed);
   const d = parsed.data;
 
-  await prisma.rentPayment.create({
+  const payment = await prisma.rentPayment.create({
     data: {
       leaseId: d.leaseId,
       paidOn: new Date(d.paidOn),
@@ -118,9 +133,17 @@ export async function createRentPaymentAction(
     },
   });
 
+  await audit(
+    user,
+    "payment.create",
+    "RentPayment",
+    payment.id,
+    `Recorded rent payment of ${formatZar(payment.amount)} (${d.status})`,
+  );
   revalidatePath(`/properties/${d.propertyId}`);
   revalidatePath("/");
   revalidatePath("/tax");
+  revalidatePath("/rent-roll");
   return { ok: true };
 }
 
@@ -145,6 +168,9 @@ export async function createExpenseAction(
   _prev: ActionState,
   formData: FormData,
 ): Promise<ActionState> {
+  const user = await getWriter();
+  if (!user) return { error: NOT_AUTHORIZED };
+
   const parsed = expenseSchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) return fail(parsed);
   const d = parsed.data;
@@ -154,7 +180,7 @@ export async function createExpenseAction(
   const userOverride = d.isCapital === "on" || d.isCapital === "true";
   const isCapital = userOverride || (cat?.defaultIsCapital ?? false);
 
-  await prisma.expense.create({
+  const expense = await prisma.expense.create({
     data: {
       propertyId: d.propertyId,
       date: new Date(d.date),
@@ -168,9 +194,17 @@ export async function createExpenseAction(
     },
   });
 
+  await audit(
+    user,
+    "expense.create",
+    "Expense",
+    expense.id,
+    `Recorded ${cat?.label ?? d.categoryCode} expense of ${formatZar(expense.amount)}`,
+  );
   revalidatePath(`/properties/${d.propertyId}`);
   revalidatePath("/");
   revalidatePath("/tax");
+  revalidatePath("/reports");
   return { ok: true };
 }
 
@@ -194,11 +228,14 @@ export async function createLoanAction(
   _prev: ActionState,
   formData: FormData,
 ): Promise<ActionState> {
+  const user = await getWriter();
+  if (!user) return { error: NOT_AUTHORIZED };
+
   const parsed = loanSchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) return fail(parsed);
   const d = parsed.data;
 
-  await prisma.loan.create({
+  const loan = await prisma.loan.create({
     data: {
       propertyId: d.propertyId,
       lender: d.lender,
@@ -212,6 +249,13 @@ export async function createLoanAction(
     },
   });
 
+  await audit(
+    user,
+    "loan.create",
+    "Loan",
+    loan.id,
+    `Added ${d.lender} loan of ${formatZar(loan.originalBalance)}`,
+  );
   revalidatePath(`/properties/${d.propertyId}`);
   revalidatePath("/");
   revalidatePath("/tax");
@@ -239,11 +283,14 @@ export async function createLoanStatementAction(
   _prev: ActionState,
   formData: FormData,
 ): Promise<ActionState> {
+  const user = await getWriter();
+  if (!user) return { error: NOT_AUTHORIZED };
+
   const parsed = statementSchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) return fail(parsed);
   const d = parsed.data;
 
-  await prisma.loanStatement.create({
+  const statement = await prisma.loanStatement.create({
     data: {
       loanId: d.loanId,
       periodStart: new Date(d.periodStart),
@@ -257,7 +304,135 @@ export async function createLoanStatementAction(
     },
   });
 
+  await audit(
+    user,
+    "statement.create",
+    "LoanStatement",
+    statement.id,
+    `Added loan statement with interest of ${formatZar(statement.interestCharged)}`,
+  );
   revalidatePath(`/properties/${d.propertyId}`);
+  revalidatePath("/");
+  revalidatePath("/tax");
+  return { ok: true };
+}
+
+// --------------------------------------------------------------------------
+// Deletes — corrections happen; every delete is audited.
+// --------------------------------------------------------------------------
+
+const deleteSchema = z.object({
+  propertyId: z.string().min(1),
+  id: z.string().min(1),
+});
+
+export async function deleteRentPaymentAction(
+  _prev: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  const user = await getWriter();
+  if (!user) return { error: NOT_AUTHORIZED };
+
+  const parsed = deleteSchema.safeParse(Object.fromEntries(formData));
+  if (!parsed.success) return { error: "Invalid request." };
+  const d = parsed.data;
+
+  const payment = await prisma.rentPayment.delete({ where: { id: d.id } });
+  await audit(
+    user,
+    "payment.delete",
+    "RentPayment",
+    payment.id,
+    `Deleted rent payment of ${formatZar(payment.amount)}`,
+  );
+  revalidatePath(`/properties/${d.propertyId}`);
+  revalidatePath("/");
+  revalidatePath("/tax");
+  revalidatePath("/rent-roll");
+  return { ok: true };
+}
+
+export async function deleteExpenseAction(
+  _prev: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  const user = await getWriter();
+  if (!user) return { error: NOT_AUTHORIZED };
+
+  const parsed = deleteSchema.safeParse(Object.fromEntries(formData));
+  if (!parsed.success) return { error: "Invalid request." };
+  const d = parsed.data;
+
+  const expense = await prisma.expense.delete({ where: { id: d.id } });
+  const cat = getCategory(expense.categoryCode);
+  await audit(
+    user,
+    "expense.delete",
+    "Expense",
+    expense.id,
+    `Deleted ${cat?.label ?? expense.categoryCode} expense of ${formatZar(expense.amount)}`,
+  );
+  revalidatePath(`/properties/${d.propertyId}`);
+  revalidatePath("/");
+  revalidatePath("/tax");
+  revalidatePath("/reports");
+  return { ok: true };
+}
+
+export async function deleteLoanStatementAction(
+  _prev: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  const user = await getWriter();
+  if (!user) return { error: NOT_AUTHORIZED };
+
+  const parsed = deleteSchema.safeParse(Object.fromEntries(formData));
+  if (!parsed.success) return { error: "Invalid request." };
+  const d = parsed.data;
+
+  const statement = await prisma.loanStatement.delete({ where: { id: d.id } });
+  await audit(
+    user,
+    "statement.delete",
+    "LoanStatement",
+    statement.id,
+    `Deleted loan statement with interest of ${formatZar(statement.interestCharged)}`,
+  );
+  revalidatePath(`/properties/${d.propertyId}`);
+  revalidatePath("/");
+  revalidatePath("/tax");
+  return { ok: true };
+}
+
+// --------------------------------------------------------------------------
+// Archive / unarchive property
+// --------------------------------------------------------------------------
+
+export async function setPropertyArchivedAction(
+  _prev: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  const user = await getWriter();
+  if (!user) return { error: NOT_AUTHORIZED };
+
+  const propertyId = String(formData.get("propertyId") ?? "");
+  const archived = String(formData.get("archived") ?? "") === "true";
+  if (!propertyId) return { error: "Invalid request." };
+
+  const property = await prisma.property.update({
+    where: { id: propertyId },
+    data: { archived },
+  });
+
+  await audit(
+    user,
+    archived ? "property.archive" : "property.unarchive",
+    "Property",
+    property.id,
+    `${archived ? "Archived" : "Unarchived"} ${property.name}`,
+  );
+  revalidatePath(`/properties/${propertyId}`);
+  revalidatePath("/properties");
   revalidatePath("/");
   revalidatePath("/tax");
   return { ok: true };

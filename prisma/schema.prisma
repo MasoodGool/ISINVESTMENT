@@ -12,6 +12,41 @@ datasource db {
   // provider = "postgresql"
 }
 
+/// Application users. Role gates what a user can do:
+///   ADMIN   -> everything, including user management and the audit log
+///   MANAGER -> create/edit portfolio data, run reports and exports
+///   VIEWER  -> read-only (e.g. your accountant at tax time)
+model User {
+  id           String     @id @default(cuid())
+  email        String     @unique
+  name         String
+  passwordHash String
+  role         String     @default("MANAGER") // ADMIN | MANAGER | VIEWER
+  active       Boolean    @default(true)
+  lastLoginAt  DateTime?
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+
+  auditLogs    AuditLog[]
+}
+
+/// Immutable trail of who did what. Email is denormalised so entries
+/// stay meaningful even if the user is later deactivated or removed.
+model AuditLog {
+  id         String   @id @default(cuid())
+  user       User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  userId     String?
+  userEmail  String
+  action     String   // e.g. "expense.create", "auth.login"
+  entityType String   // e.g. "Expense", "User", "Auth"
+  entityId   String?
+  summary    String
+  createdAt  DateTime @default(now())
+
+  @@index([createdAt])
+  @@index([entityType, entityId])
+}
+
 model Property {
   id               String        @id @default(cuid())
   name             String
