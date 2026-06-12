@@ -9,6 +9,8 @@
     "start": "next start",
     "lint": "next lint",
     "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
     "db:push": "prisma db push",
     "db:seed": "tsx --env-file=.env prisma/seed.ts",
     "db:studio": "prisma studio",
@@ -41,6 +43,7 @@
     "prisma": "^6.2.0",
     "tailwindcss": "^3.4.17",
     "tsx": "^4.19.2",
-    "typescript": "^5.7.3"
+    "typescript": "^5.7.3",
+    "vitest": "^4.1.8"
   }
 }

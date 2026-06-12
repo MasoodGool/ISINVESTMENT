@@ -56,6 +56,9 @@ export async function verifyPassword(
 
   try {
     const expected = Buffer.from(hashHex, "hex");
+    // Guard against malformed hex collapsing to a short/empty buffer, which
+    // would otherwise compare equal trivially.
+    if (expected.length !== KEY_LENGTH) return false;
     const actual = await scrypt(password, salt, expected.length, {
       N: Number(n),
       r: Number(r),

@@ -124,8 +124,8 @@ export default async function TaxPage({
         <div>
           <h2 className="text-base font-semibold tracking-tight">By property</h2>
           <p className="mt-0.5 text-sm text-zinc-500">
-            Each property's contribution to the tax year. Click through for the full
-            ledger.
+            Each property&apos;s contribution to the tax year. Click through for the
+            full ledger.
           </p>
         </div>
 
