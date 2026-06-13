@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Download } from "lucide-react";
+import { Download, Printer } from "lucide-react";
 import { prisma } from "@/lib/db";
 import { getCurrentUser } from "@/lib/auth";
 import { canWrite } from "@/lib/rbac";
@@ -79,6 +79,12 @@ export default async function TaxPage({
             </button>
           </form>
           <div className="flex items-center gap-1.5">
+            <Link
+              href={`/tax-pack?year=${taxYear}`}
+              className="inline-flex h-9 items-center gap-1.5 rounded-md bg-zinc-900 px-3 text-sm font-medium text-white hover:bg-zinc-800"
+            >
+              <Printer className="h-4 w-4" /> Tax pack (PDF)
+            </Link>
             <a
               href={`/api/export/tax-report?year=${taxYear}`}
               className="inline-flex h-9 items-center gap-1.5 rounded-md border border-zinc-300 bg-white px-3 text-sm font-medium text-zinc-700 hover:bg-zinc-50"

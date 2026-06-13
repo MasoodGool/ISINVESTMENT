@@ -30,3 +30,24 @@ body {
     @apply text-xs text-zinc-500;
   }
 }
+
+/* Print: drop screen chrome, force a clean white page, keep blocks intact. */
+@media print {
+  html,
+  body {
+    background: #ffffff;
+  }
+  .no-print {
+    display: none !important;
+  }
+  .avoid-break {
+    break-inside: avoid;
+  }
+  .page-break {
+    break-before: page;
+  }
+  @page {
+    margin: 18mm 16mm;
+  }
+}
+
